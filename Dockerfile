@@ -32,21 +32,21 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy ALL application files first
-COPY --chown=www-data:www-data . .
+# Copy composer files first for better caching
+COPY composer.json composer.lock ./
 
-# Create necessary directories
+# Install dependencies as root first (to ensure proper installation)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+# Now copy the rest of the application
+COPY . .
+
+# Run composer scripts after copying app files
+RUN composer dump-autoload --optimize
+
+# Create storage directories and set permissions
 RUN mkdir -p storage/framework/{sessions,views,cache} bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache
-
-# Install dependencies as www-data
-USER www-data
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-USER root
-
-# Final permissions
-RUN chown -R www-data:www-data /var/www/html
+    && chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 80
