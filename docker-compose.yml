@@ -2,7 +2,9 @@ version: "3.8"
 
 services:
   app:
-    image: serversideup/php:8.3-fpm-nginx
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     working_dir: /var/www/html
     environment:
       - APP_NAME=${APP_NAME:-OPSFLUX}
@@ -21,38 +23,17 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - REDIS_PORT=${REDIS_PORT:-6379}
-      - SSL_MODE=off
-      - AUTORUN_ENABLED=true
-      - AUTORUN_LARAVEL_MIGRATION=true
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+      - QUEUE_CONNECTION=redis
     volumes:
-      - .:/var/www/html
-      - app-storage:/var/www/html/storage
-      - app-vendor:/var/www/html/vendor
-      - app-node:/var/www/html/node_modules
+      - app-storage:/var/www/html/storage/app
     ports:
       - "80"
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        echo "Installing dependencies..."
-        composer install --no-dev --optimize-autoloader --no-interaction
-        npm ci && npm run build
-        echo "Setting permissions..."
-        chown -R webuser:webgroup storage bootstrap/cache
-        chmod -R 775 storage bootstrap/cache
-        echo "Running migrations..."
-        php artisan migrate --force || true
-        php artisan config:cache
-        php artisan route:cache
-        php artisan view:cache
-        echo "Starting server..."
-        /init
 
 volumes:
   app-storage:
-  app-vendor:
-  app-node:
 
 networks:
   default:
